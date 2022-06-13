@@ -10,7 +10,7 @@ import {
   Toast,
 } from "@raycast/api";
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 
 export default function Command() {
@@ -64,7 +64,7 @@ const AllOpenIncidents = () => {
   }
 
   return (
-    <List isLoading={!data && !error} enableFiltering navigationTitle="All Opened Incidents">
+    <List isLoading={!data && !error} enableFiltering navigationTitle="All Open Incidents">
       {data?.incidents && data.incidents.length > 0 && <IncidentItems incidents={data.incidents} />}
       {data?.incidents && data.incidents.length === 0 && <List.EmptyView title="No incidents 🎉" />}
     </List>
@@ -80,33 +80,63 @@ const IncidentItems = ({ incidents }: { incidents: ResponseIncidents["incidents"
     loadUserId();
   }, []);
 
+  const groupedIncidents = useMemo(
+    () =>
+      incidents
+        .sort((incidentA, incidentB) => (new Date(incidentA.created_at) > new Date(incidentB.created_at) ? -1 : 1))
+        .sort((incident) => (incident.status === "triggered" ? -1 : 1))
+        .reduce<{ mine: ResponseIncidents["incidents"]; others: ResponseIncidents["incidents"] }>(
+          (grouped, incident) => {
+            const assignedToMe = incident.assignments.some((assignment) => assignment.assignee.id === userId);
+            return {
+              mine: assignedToMe ? [...grouped.mine, incident] : grouped.mine,
+              others: assignedToMe ? grouped.others : [...grouped.others, incident],
+            };
+          },
+          { mine: [], others: [] }
+        ),
+    [incidents]
+  );
+
   return (
     <>
-      {incidents
-        .sort((incident) =>
-          incident.status === "triggered" ||
-          incident.assignments.some((assignment) => userId && assignment.assignee.id === userId)
-            ? -1
-            : 1
-        )
-        .map((incident) => (
-          <List.Item
-            key={incident.id}
-            title={incident.summary}
-            accessories={[{ text: incident.service.summary }]}
-            icon={{
-              source: incident.assignments.some((assignment) => assignment.assignee.id === userId)
-                ? Icon.Pin
-                : Icon.ExclamationMark,
-              tintColor: incident.status === "triggered" ? Color.Red : Color.Yellow,
-            }}
-            actions={
-              <ActionPanel title="hello">
-                <Action.OpenInBrowser url={incident.html_url} />
-              </ActionPanel>
-            }
-          />
+      <List.Section title="Assigned to me">
+        {groupedIncidents.mine.map((incident) => (
+          <IncidentItem key={incident.id} mine incident={incident} />
         ))}
+      </List.Section>
+      <List.Section
+        title={groupedIncidents.mine.length === 0 ? "Others while there is no assinged incidents to you" : "Others"}
+        subtitle={`${groupedIncidents.others.length}`}
+      >
+        {groupedIncidents.others.map((incident) => (
+          <IncidentItem key={incident.id} incident={incident} />
+        ))}
+      </List.Section>
     </>
+  );
+};
+
+const IncidentItem = ({
+  incident,
+  mine = false,
+}: {
+  incident: ResponseIncidents["incidents"][number];
+  mine?: boolean;
+}) => {
+  return (
+    <List.Item
+      title={incident.summary}
+      accessories={[{ text: incident.service.summary }]}
+      icon={{
+        source: mine ? Icon.Pin : Icon.ExclamationMark,
+        tintColor: incident.status === "triggered" ? Color.Red : Color.Yellow,
+      }}
+      actions={
+        <ActionPanel title="hello">
+          <Action.OpenInBrowser url={incident.html_url} />
+        </ActionPanel>
+      }
+    />
   );
 };
