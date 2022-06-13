@@ -95,7 +95,7 @@ const IncidentItems = ({ incidents }: { incidents: ResponseIncidents["incidents"
           },
           { mine: [], others: [] }
         ),
-    [incidents]
+    [incidents, userId]
   );
 
   return (
