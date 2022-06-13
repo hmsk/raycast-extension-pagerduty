@@ -3,23 +3,34 @@
   "name": "pagerduty",
   "title": "PagerDuty",
   "description": "Quick access for PagerDuty alerts",
-  "icon": "command-icon.png",
+  "icon": "logo.png",
   "author": "hmsk",
   "categories": [
     "Developer Tools"
   ],
   "license": "MIT",
+  "preferences": [
+    {
+      "name": "apiKey",
+      "type": "password",
+      "required": true,
+      "title": "API key",
+      "description": "PagerDuty API key",
+      "placeholder": "User Settings > Create API User Token"
+    }
+  ],
   "commands": [
     {
       "name": "index",
-      "title": "Show List and Detail",
-      "subtitle": "Temporary Subtitle",
+      "title": "PagerDuty Dashboard",
       "description": "Template for showing a static list and a detail view",
       "mode": "view"
     }
   ],
   "dependencies": {
-    "@raycast/api": "^1.36.0"
+    "@raycast/api": "^1.36.0",
+    "axios": "^0.27.2",
+    "swr": "^1.3.0"
   },
   "devDependencies": {
     "@types/node": "~16.10.0",
