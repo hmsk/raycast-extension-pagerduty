@@ -10,6 +10,7 @@ import {
   Toast,
 } from "@raycast/api";
 import axios from "axios";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
 
 export default function Command() {
@@ -34,7 +35,7 @@ const AllOpenIncidents = () => {
   const apiKey = getPreferenceValues<{ apiKey: string }>().apiKey;
 
   const { data, error } = useSWR(apiKey, async (apiKey) => {
-    const userId = await LocalStorage.getItem("userId");
+    const userId = await LocalStorage.getItem<string>("userId");
     const client = axios.create({
       baseURL: "https://api.pagerduty.com",
       headers: {
@@ -46,12 +47,12 @@ const AllOpenIncidents = () => {
     });
 
     if (!userId) {
-      await LocalStorage.setItem("userId", (await client.get("/users/me")).data.user.id);
+      await LocalStorage.setItem("userId", (await client.get<ResponseUserMe>("/users/me")).data.user.id);
     }
 
     const {
       data: { incidents },
-    } = await client.get("/incidents?statuses[]=triggered&statuses[]=acknowledged");
+    } = await client.get<ResponseIncidents>("/incidents?statuses[]=triggered&statuses[]=acknowledged");
 
     return {
       incidents,
@@ -70,15 +71,21 @@ const AllOpenIncidents = () => {
   );
 };
 
-const IncidentItems = ({ incidents }) => {
-  const userId = LocalStorage.getItem("userId");
+const IncidentItems = ({ incidents }: { incidents: ResponseIncidents["incidents"] }) => {
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => {
+    const loadUserId = async () => {
+      setUserId((await LocalStorage.getItem<string>("userId")) ?? null);
+    };
+    loadUserId();
+  }, []);
 
   return (
     <>
       {incidents
         .sort((incident) =>
           incident.status === "triggered" ||
-          incident.assignments.some((assignment) => assignment.assignee.id === userId)
+          incident.assignments.some((assignment) => userId && assignment.assignee.id === userId)
             ? -1
             : 1
         )
